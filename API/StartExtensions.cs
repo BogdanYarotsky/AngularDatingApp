@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using API.Data;
 using API.Interfaces;
+using API.Middleware;
 using API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -9,17 +10,18 @@ using Microsoft.IdentityModel.Tokens;
 
 public static class StartExtensions
 {
-    public static IServiceCollection AddAll(this IServiceCollection services, IConfiguration config)
+    public static WebApplicationBuilder AddServices(this WebApplicationBuilder builder)
     {
+        var config = builder.Configuration;
+        var services = builder.Services;
         var connectionString = config.GetConnectionString("Default");
         services.AddDbContext<DataContext>(o => o.UseSqlite(connectionString));
-
         services.AddIdentityServices(config["TokenKey"]);
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<KeyedHashAlgorithm, HMACSHA512>();
         services.AddControllers();
         services.AddCors();
-        return services;
+        return builder;
     }
 
     private static IServiceCollection AddIdentityServices(this IServiceCollection services, string tokenKey)
@@ -42,6 +44,7 @@ public static class StartExtensions
 
     public static WebApplication AddMiddleware(this WebApplication app)
     {
+        app.UseMiddleware<ExceptionMiddleware>();
         app.UseCors(policy =>
         {
             policy
