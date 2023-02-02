@@ -19,8 +19,10 @@ public static class StartExtensions
         services.AddIdentityServices(config["TokenKey"]);
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<KeyedHashAlgorithm, HMACSHA512>();
+        services.AddScoped<IUserRepository, UserRepository>();
         services.AddControllers();
         services.AddCors();
+        services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
         return builder;
     }
 
@@ -40,6 +42,25 @@ public static class StartExtensions
             };
         });
         return services;
+    }
+
+    public static async Task<WebApplication> SeedDatabaseAsync(this WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+
+        try
+        {
+            var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+            await context.Database.MigrateAsync();
+            await Seed.SeedUsersAsync(context);
+        }
+        catch (Exception ex)
+        {
+            var logger = scope.ServiceProvider.GetService<ILogger<Program>>();
+            logger.LogError(ex, "An error occured during migration");
+        }
+
+        return app;
     }
 
     public static WebApplication AddMiddleware(this WebApplication app)
